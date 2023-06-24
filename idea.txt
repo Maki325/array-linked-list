@@ -1,0 +1,8 @@
+O(1)
+10
++ 1
+New List
+Copy the old one
+Delete the old one
+Linked list in the space array list
++ Insert Speed (Not append speed)
