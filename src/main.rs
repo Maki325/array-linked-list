@@ -52,9 +52,12 @@ impl<T: std::fmt::Display + std::fmt::Debug> List<T> {
     return val.map(|tail| (tail as isize) - (index as isize));
   }
 
-  pub fn insert(&mut self, index: usize, value: T) {
-    // self.nodes.insert(index, element);
+  fn get_actual_index(&self, index: usize) -> usize {
+    let node = &self.nodes[index];
+    return (index as isize + node.position_offset) as usize;
+  }
 
+  pub fn insert(&mut self, index: usize, value: T) {
     let len = self.nodes.len();
 
     if index == 0 {
@@ -63,12 +66,8 @@ impl<T: std::fmt::Display + std::fmt::Debug> List<T> {
         data: value,
         next: Self::map(self.head, len),
         prev: None,
-
-        // [TODO]
         position_offset: 0,
       };
-
-      // println!("Node: {:?}", &node);
 
       self.head = Some(len);
       if self.tail == None {
@@ -78,12 +77,12 @@ impl<T: std::fmt::Display + std::fmt::Debug> List<T> {
       self.nodes.push(node);
     } else if index == len {
       // Add like tail
+
       let node = Node {
         data: value,
         next: None,
         prev: Self::map(self.tail, len),
-
-        // [TODO]
+        // 0 because it's the last element
         position_offset: 0,
       };
 
@@ -97,50 +96,46 @@ impl<T: std::fmt::Display + std::fmt::Debug> List<T> {
       }
 
       self.nodes.push(node);
+
+      // We can return early
+      // because position_offset will be 0
+      // as it's the last element
+      return;
     } else if index > len {
       panic!("insertion index (is {index}) should be <= len (is {len})");
     } else {
       // Add in the middle
 
-      let mut current = self.head;
-      let mut next = None;
-      let mut idx = 0;
-      while let Some(current_index) = current {
-        let node = &self.nodes[current_index];
-        next = node
-          .next
-          .map(|node_next| ((current_index as isize) + node_next) as usize);
-
-        if idx >= index - 1 {
-          break;
-        }
-        idx += 1;
-        current = next;
-      }
+      let current = self.get_actual_index(index - 1);
+      let next = self.get_actual_index(index);
 
       let node = Node {
         data: value,
-        next: Self::map(next, len),
-        prev: Self::map(current, index),
-
-        // [TODO]
+        next: Self::map(Some(next), len),
+        prev: Self::map(Some(current), index),
         position_offset: 0,
       };
 
-      self.nodes[current.unwrap()].next = Some((len as isize) - (current.unwrap() as isize));
-      self.nodes[next.unwrap()].prev = Some((len as isize) - (next.unwrap() as isize));
+      self.nodes[current].next = Some((len as isize) - (current as isize));
+      self.nodes[next].prev = Some((len as isize) - (next as isize));
 
       self.nodes.push(node);
-
-      // unimplemented!();
     }
-    // let node = Node {
-    //   data: value,
-    //   next: None,
-    //   prev: self.tail.map(|tail| (tail as isize) - (index as isize)),
-    //   position_offset: 0,
-    // };
-    // self.nodes.push(node);
+
+    // [TODO]: Fix in future version, so it's not O(n), if possible
+    if len != 0 {
+      let mut current = self.head;
+      let mut idx = 0;
+      while let Some(current_index) = current {
+        self.nodes[idx].position_offset = current_index as isize - idx as isize;
+        let node = &self.nodes[current_index];
+        current = node
+          .next
+          .map(|next| ((current_index as isize) + next) as usize);
+
+        idx += 1;
+      }
+    }
   }
 
   pub fn print(&self) {
