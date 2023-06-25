@@ -1,6 +1,6 @@
 use std::{
   fmt::Debug,
-  mem::{self, size_of},
+  mem::size_of,
   ops::{Index, IndexMut},
 };
 
@@ -190,79 +190,18 @@ impl<T> IndexMut<usize> for List<T> {
   }
 }
 
-struct ListIter<T> {
-  ptr: *const Node<T>,
-  len: usize,
-  #[allow(dead_code)]
-  nodes: Vec<Node<T>>,
-  current: usize,
-}
-
-impl<T> ListIter<T> {
-  pub fn new(nodes: Vec<Node<T>>) -> ListIter<T> {
-    return {
-      ListIter {
-        ptr: nodes.as_ptr(),
-        len: nodes.len(),
-        nodes,
-        current: 0,
-      }
-    };
-  }
-}
-
-impl<T> Iterator for ListIter<T> {
-  type Item = T;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.current >= self.len {
-      None
-    } else if size_of::<T>() == 0 {
-      // purposefully don't use 'ptr.offset' because for
-      // vectors with 0-size elements this would return the
-      // same pointer.
-
-      // [TODO]: Maybe fix at some point, idk
-      self.ptr = self.ptr.cast::<u8>().wrapping_add(1).cast::<Node<T>>();
-      // .with_metadata_of(self.ptr);
-
-      // self.ptr = self.ptr.wrapping_byte_add(1);
-
-      // Make up a value of this ZST.
-      self.current += 1;
-      Some(unsafe { mem::zeroed() })
-    } else {
-      let node = unsafe { self.ptr.clone().add(self.current) };
-      let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
-
-      self.current += 1;
-
-      return Some(unsafe { std::ptr::read_unaligned(data) });
-    }
-  }
-}
-
-impl<T> IntoIterator for List<T> {
-  type Item = T;
-  type IntoIter = ListIter<T>;
-
-  fn into_iter(self) -> Self::IntoIter {
-    return ListIter::new(self.nodes);
-  }
-}
-
 macro_rules! impl_ref_iter {
-  ($struct_name: ident, $const_or_mut:tt, $ptr_fn: ident, $($only_mut:tt)?) => {
-    struct $struct_name<'a, T> {
+  ($struct_name: ident, $const_or_mut:tt, $ptr_fn: ident, $next_data_return:expr $(, $lifetime:lifetime, $maybe_ref:tt)? $(; $only_mut:tt)?) => {
+    struct $struct_name<$($lifetime,)? T> {
       ptr: *$const_or_mut Node<T>,
       len: usize,
       #[allow(dead_code)]
-      nodes: &'a $($only_mut)? Vec<Node<T>>,
+      nodes: $($maybe_ref)? $($lifetime)? Vec<Node<T>>,
       current: usize,
     }
 
-    impl<'a, T> $struct_name<'a, T> {
-      pub fn new(nodes: &'a $($only_mut)? Vec<Node<T>>) -> $struct_name<T> {
+    impl<$($lifetime,)? T> $struct_name<$($lifetime,)? T> {
+      pub fn new(nodes: $($maybe_ref)? $($lifetime)? $($only_mut)? Vec<Node<T>>) -> $struct_name<T> {
         return {
           $struct_name {
             ptr: nodes.$ptr_fn(),
@@ -274,8 +213,8 @@ macro_rules! impl_ref_iter {
       }
     }
 
-    impl<'a, T> Iterator for $struct_name<'a, T> {
-      type Item = &'a $($only_mut)? T;
+    impl<$($lifetime,)? T> Iterator for $struct_name<$($lifetime,)? T> {
+      type Item = $($maybe_ref)? $($lifetime)? $($only_mut)? T;
 
       fn next(&mut self) -> Option<Self::Item> {
         if self.current >= self.len {
@@ -288,28 +227,52 @@ macro_rules! impl_ref_iter {
 
           self.current += 1;
 
-          return Some(unsafe { & $($only_mut)? *data });
+          return Some($next_data_return(data));
         }
       }
     }
 
-    impl<'a, T> IntoIterator for &'a $($only_mut)? List<T> {
-      type Item = &'a $($only_mut)? T;
-      type IntoIter = $struct_name<'a, T>;
+    impl<$($lifetime,)? T> IntoIterator for $($maybe_ref)? $($lifetime)? $($only_mut)? List<T> {
+      type Item = $($maybe_ref)? $($lifetime)? $($only_mut)?  T;
+      type IntoIter = $struct_name<$($lifetime,)? T>;
 
       fn into_iter(self) -> Self::IntoIter {
-        return $struct_name::new(& $($only_mut)? self.nodes);
+        return $struct_name::new($($maybe_ref)? $($only_mut)? self.nodes);
       }
     }
   };
 }
 
 impl_ref_iter! {
-  ListRefIter, const, as_ptr,
+  ListIter,
+  const,
+  as_ptr,
+  |data: *const T| {
+    unsafe { std::ptr::read_unaligned(data) }
+  }
 }
 
 impl_ref_iter! {
-  ListMutRefIter, mut, as_mut_ptr, mut
+  ListRefIter,
+  const,
+  as_ptr,
+  |data: *const T| {
+    unsafe { &*data }
+  },
+  'a,
+  &
+}
+
+impl_ref_iter! {
+  ListMutRefIter,
+  mut,
+  as_mut_ptr,
+  |data: *mut T| {
+    unsafe { &mut *data }
+  },
+  'a,
+  &;
+  mut
 }
 
 fn main() {
@@ -356,6 +319,15 @@ fn main() {
 
   for value in &mut list {
     *value += 100.0;
+  }
+
+  for value in &list {
+    print!("{} ", value);
+  }
+  println!();
+
+  for value in &mut list {
+    *value -= 100.0;
   }
 
   for value in &list {
