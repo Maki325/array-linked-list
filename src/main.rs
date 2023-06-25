@@ -211,7 +211,7 @@ impl<T> ListIter<T> {
   }
 }
 
-impl<T: Debug> Iterator for ListIter<T> {
+impl<T> Iterator for ListIter<T> {
   type Item = T;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -242,7 +242,7 @@ impl<T: Debug> Iterator for ListIter<T> {
   }
 }
 
-impl<T: Debug> IntoIterator for List<T> {
+impl<T> IntoIterator for List<T> {
   type Item = T;
   type IntoIter = ListIter<T>;
 
@@ -251,102 +251,65 @@ impl<T: Debug> IntoIterator for List<T> {
   }
 }
 
-struct ListRefIter<'a, T> {
-  ptr: *const Node<T>,
-  len: usize,
-  #[allow(dead_code)]
-  nodes: &'a Vec<Node<T>>,
-  current: usize,
-}
-
-impl<'a, T> ListRefIter<'a, T> {
-  pub fn new(nodes: &'a Vec<Node<T>>) -> ListRefIter<T> {
-    return {
-      ListRefIter {
-        ptr: nodes.as_ptr(),
-        len: nodes.len(),
-        nodes,
-        current: 0,
-      }
-    };
-  }
-}
-
-impl<'a, T> Iterator for ListRefIter<'a, T> {
-  type Item = &'a T;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.current >= self.len {
-      None
-    } else if size_of::<T>() == 0 {
-      panic!("ZSTs are not supported");
-    } else {
-      let node = unsafe { self.ptr.clone().add(self.current) };
-      let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
-
-      self.current += 1;
-
-      return Some(unsafe { &*data });
+macro_rules! impl_ref_iter {
+  ($struct_name: ident, $const_or_mut:tt, $ptr_fn: ident, $($only_mut:tt)?) => {
+    struct $struct_name<'a, T> {
+      ptr: *$const_or_mut Node<T>,
+      len: usize,
+      #[allow(dead_code)]
+      nodes: &'a $($only_mut)? Vec<Node<T>>,
+      current: usize,
     }
-  }
-}
 
-impl<'a, T> IntoIterator for &'a List<T> {
-  type Item = &'a T;
-  type IntoIter = ListRefIter<'a, T>;
-
-  fn into_iter(self) -> Self::IntoIter {
-    return ListRefIter::new(&self.nodes);
-  }
-}
-
-struct ListMutRefIter<'a, T> {
-  ptr: *mut Node<T>,
-  len: usize,
-  #[allow(dead_code)]
-  nodes: &'a mut Vec<Node<T>>,
-  current: usize,
-}
-
-impl<'a, T> ListMutRefIter<'a, T> {
-  pub fn new(nodes: &'a mut Vec<Node<T>>) -> ListMutRefIter<T> {
-    return {
-      ListMutRefIter {
-        ptr: nodes.as_mut_ptr(),
-        len: nodes.len(),
-        nodes,
-        current: 0,
+    impl<'a, T> $struct_name<'a, T> {
+      pub fn new(nodes: &'a $($only_mut)? Vec<Node<T>>) -> $struct_name<T> {
+        return {
+          $struct_name {
+            ptr: nodes.$ptr_fn(),
+            len: nodes.len(),
+            nodes,
+            current: 0,
+          }
+        };
       }
-    };
-  }
-}
-
-impl<'a, T> Iterator for ListMutRefIter<'a, T> {
-  type Item = &'a mut T;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    if self.current >= self.len {
-      None
-    } else if size_of::<T>() == 0 {
-      panic!("ZSTs are not supported");
-    } else {
-      let node = unsafe { self.ptr.clone().add(self.current) };
-      let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
-
-      self.current += 1;
-
-      return Some(unsafe { &mut *data });
     }
-  }
+
+    impl<'a, T> Iterator for $struct_name<'a, T> {
+      type Item = &'a $($only_mut)? T;
+
+      fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.len {
+          None
+        } else if size_of::<T>() == 0 {
+          panic!("ZSTs are not supported");
+        } else {
+          let node = unsafe { self.ptr.clone().add(self.current) };
+          let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
+
+          self.current += 1;
+
+          return Some(unsafe { & $($only_mut)? *data });
+        }
+      }
+    }
+
+    impl<'a, T> IntoIterator for &'a $($only_mut)? List<T> {
+      type Item = &'a $($only_mut)? T;
+      type IntoIter = $struct_name<'a, T>;
+
+      fn into_iter(self) -> Self::IntoIter {
+        return $struct_name::new(& $($only_mut)? self.nodes);
+      }
+    }
+  };
 }
 
-impl<'a, T> IntoIterator for &'a mut List<T> {
-  type Item = &'a mut T;
-  type IntoIter = ListMutRefIter<'a, T>;
+impl_ref_iter! {
+  ListRefIter, const, as_ptr,
+}
 
-  fn into_iter(self) -> Self::IntoIter {
-    return ListMutRefIter::new(&mut self.nodes);
-  }
+impl_ref_iter! {
+  ListMutRefIter, mut, as_mut_ptr, mut
 }
 
 fn main() {
