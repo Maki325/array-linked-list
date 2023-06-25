@@ -1,8 +1,7 @@
 use std::{
   fmt::Debug,
   mem::{self, size_of},
-  ops::{self, DerefMut, Index, IndexMut},
-  slice::{self, SliceIndex},
+  ops::{Index, IndexMut},
 };
 
 #[derive(Debug)]
@@ -145,35 +144,33 @@ impl<T> List<T> {
       }
     }
   }
+
+  pub fn into_iter(self) -> ListIter<T> {
+    return ListIter::new(self.nodes);
+  }
+
+  pub fn iter(&self) -> ListRefIter<T> {
+    return ListRefIter::new(&self.nodes);
+  }
+
+  pub fn iter_mut(&mut self) -> ListMutRefIter<T> {
+    return ListMutRefIter::new(&mut self.nodes);
+  }
 }
 
-impl<T: std::fmt::Display + std::fmt::Debug> List<T> {
+impl<T: std::fmt::Display> List<T> {
   pub fn print(&self) {
-    let mut current = self.head;
-    let mut idx = 0;
-    while let Some(index) = current {
-      let node = &self.nodes[index];
+    for node in &self.nodes {
+      print!("{} ", node.data);
+    }
+    println!();
+  }
+}
 
-      let data = unsafe {
-        ((node) as *const Node<T>)
-          .clone()
-          .offset(node.position_offset)
-      }
-      .cast::<T>();
-      print!(
-        "self.ptr: {:#?}, node: {:#?}, data: {:#?}, current: {:#?}, position_offset: {:#?}, data: {:#?}",
-        self.nodes.as_ptr(),
-        node as *const Node<T>,
-        data,
-        idx,
-        node.position_offset,
-        node.data
-      );
-
-      println!(" {}", node.data);
-      // print!("{} ", node.data);
-      current = node.next.map(|next| ((index as isize) + next) as usize);
-      idx += 1;
+impl<T: std::fmt::Debug> List<T> {
+  pub fn print_debug(&self) {
+    for node in &self.nodes {
+      print!("{:#?} ", node.data);
     }
     println!();
   }
@@ -196,7 +193,22 @@ impl<T> IndexMut<usize> for List<T> {
 struct ListIter<T> {
   ptr: *const Node<T>,
   len: usize,
+  #[allow(dead_code)]
+  nodes: Vec<Node<T>>,
   current: usize,
+}
+
+impl<T> ListIter<T> {
+  pub fn new(nodes: Vec<Node<T>>) -> ListIter<T> {
+    return {
+      ListIter {
+        ptr: nodes.as_ptr(),
+        len: nodes.len(),
+        nodes,
+        current: 0,
+      }
+    };
+  }
 }
 
 impl<T: Debug> Iterator for ListIter<T> {
@@ -209,36 +221,24 @@ impl<T: Debug> Iterator for ListIter<T> {
       // purposefully don't use 'ptr.offset' because for
       // vectors with 0-size elements this would return the
       // same pointer.
+
+      // [TODO]: Maybe fix at some point, idk
       self.ptr = self.ptr.cast::<u8>().wrapping_add(1).cast::<Node<T>>();
       // .with_metadata_of(self.ptr);
 
       // self.ptr = self.ptr.wrapping_byte_add(1);
 
       // Make up a value of this ZST.
+      self.current += 1;
       Some(unsafe { mem::zeroed() })
     } else {
       let node = unsafe { self.ptr.clone().add(self.current) };
       let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
-      print!(
-        "self.ptr: {:#?}, node: {:#?}, data: {:#?}, current: {:#?}, position_offset: {:#?}, data: {:#?}",
-        self.ptr,
-        node,
-        data,
-        self.current,
-        unsafe { (*node).position_offset },
-        unsafe { &(*node).data }
-      );
 
       self.current += 1;
 
-      let read_memory = unsafe { std::ptr::read_unaligned(data) };
-      println!(" read_memory: {:#?}", &read_memory as *const T,);
-      Some(read_memory)
+      return Some(unsafe { std::ptr::read_unaligned(data) });
     }
-    // return self.inner.nodes.get(self.current).map(|node| {
-    //   self.current += 1;
-    //   return node.data;
-    // });
   }
 }
 
@@ -247,26 +247,47 @@ impl<T: Debug> IntoIterator for List<T> {
   type IntoIter = ListIter<T>;
 
   fn into_iter(self) -> Self::IntoIter {
-    let ptr = self.nodes.as_ptr();
-    return ListIter {
-      // inner: self.nodes.into_iter(),
-      ptr,
-      len: self.nodes.len(),
-      // end: unsafe { ptr.add(self.nodes.len()) },
-      current: 0,
-    };
+    return ListIter::new(self.nodes);
   }
 }
 
 struct ListRefIter<'a, T> {
-  inner: std::slice::Iter<'a, Node<T>>,
+  ptr: *const Node<T>,
+  len: usize,
+  #[allow(dead_code)]
+  nodes: &'a Vec<Node<T>>,
+  current: usize,
+}
+
+impl<'a, T> ListRefIter<'a, T> {
+  pub fn new(nodes: &'a Vec<Node<T>>) -> ListRefIter<T> {
+    return {
+      ListRefIter {
+        ptr: nodes.as_ptr(),
+        len: nodes.len(),
+        nodes,
+        current: 0,
+      }
+    };
+  }
 }
 
 impl<'a, T> Iterator for ListRefIter<'a, T> {
   type Item = &'a T;
 
   fn next(&mut self) -> Option<Self::Item> {
-    return self.inner.next().map(|node| &node.data);
+    if self.current >= self.len {
+      None
+    } else if size_of::<T>() == 0 {
+      panic!("ZSTs are not supported");
+    } else {
+      let node = unsafe { self.ptr.clone().add(self.current) };
+      let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
+
+      self.current += 1;
+
+      return Some(unsafe { &*data });
+    }
   }
 }
 
@@ -275,9 +296,56 @@ impl<'a, T> IntoIterator for &'a List<T> {
   type IntoIter = ListRefIter<'a, T>;
 
   fn into_iter(self) -> Self::IntoIter {
-    return ListRefIter {
-      inner: self.nodes.iter(),
+    return ListRefIter::new(&self.nodes);
+  }
+}
+
+struct ListMutRefIter<'a, T> {
+  ptr: *mut Node<T>,
+  len: usize,
+  #[allow(dead_code)]
+  nodes: &'a mut Vec<Node<T>>,
+  current: usize,
+}
+
+impl<'a, T> ListMutRefIter<'a, T> {
+  pub fn new(nodes: &'a mut Vec<Node<T>>) -> ListMutRefIter<T> {
+    return {
+      ListMutRefIter {
+        ptr: nodes.as_mut_ptr(),
+        len: nodes.len(),
+        nodes,
+        current: 0,
+      }
     };
+  }
+}
+
+impl<'a, T> Iterator for ListMutRefIter<'a, T> {
+  type Item = &'a mut T;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.current >= self.len {
+      None
+    } else if size_of::<T>() == 0 {
+      panic!("ZSTs are not supported");
+    } else {
+      let node = unsafe { self.ptr.clone().add(self.current) };
+      let data = unsafe { node.offset((*node).position_offset) }.cast::<T>();
+
+      self.current += 1;
+
+      return Some(unsafe { &mut *data });
+    }
+  }
+}
+
+impl<'a, T> IntoIterator for &'a mut List<T> {
+  type Item = &'a mut T;
+  type IntoIter = ListMutRefIter<'a, T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    return ListMutRefIter::new(&mut self.nodes);
   }
 }
 
@@ -314,8 +382,20 @@ fn main() {
 
   list.print();
   // println!("list: {:#?}", list);
+  for value in &list {
+    print!("{} ", value);
+  }
   println!();
-  for value in list {
+  for value in &list {
+    print!("{} ", value);
+  }
+  println!();
+
+  for value in &mut list {
+    *value += 100.0;
+  }
+
+  for value in &list {
     print!("{} ", value);
   }
   println!();
