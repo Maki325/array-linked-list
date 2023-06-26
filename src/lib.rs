@@ -1,5 +1,5 @@
 use std::{
-  fmt::Debug,
+  fmt::{Debug, Display, Write},
   mem::size_of,
   ops::{Index, IndexMut},
 };
@@ -13,7 +13,7 @@ pub struct Node<T> {
   position_offset: isize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct List<T> {
   head: Option<usize>,
   tail: Option<usize>,
@@ -166,21 +166,33 @@ impl<T> List<T> {
   }
 }
 
-impl<T: std::fmt::Display> List<T> {
-  pub fn print(&self) {
+impl<T: Debug> Debug for List<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    return f.debug_list().entries(self.iter()).finish();
+  }
+}
+
+impl<T: Display> Display for List<T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut is_first = true;
+    f.write_char('[')?;
     for node in &self.nodes {
-      print!("{} ", node.data);
+      if !is_first {
+        f.write_str(", ")?;
+      }
+      write!(f, "{}", node.data)?;
+
+      is_first = false;
     }
-    println!();
+    f.write_char(']')?;
+
+    return Ok(());
   }
 }
 
 impl<T: std::fmt::Debug> List<T> {
-  pub fn print_debug(&self) {
-    for node in &self.nodes {
-      print!("{:#?} ", node.data);
-    }
-    println!();
+  pub fn print_node_debug(&self) {
+    println!("{:#?}", self.nodes);
   }
 }
 
