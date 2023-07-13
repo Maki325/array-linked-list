@@ -175,3 +175,331 @@ fn iter_mut() {
     assert_eq!(&(old[idx] + 100), value);
   }
 }
+
+#[test]
+fn remove_multiple() {
+  let mut list = List::<usize>::new();
+
+  list.push(25);
+  list.push(75);
+
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 75);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 1);
+  assert_eq!(list[0], 25);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 0);
+}
+
+#[test]
+fn remove_all_from_start() {
+  let mut list = List::<usize>::new();
+
+  list.push(25);
+  list.push(50);
+  list.push(75);
+  list.push(100);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+  assert_eq!(list[3], 100);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 50);
+  assert_eq!(list[1], 75);
+  assert_eq!(list[2], 100);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 75);
+  assert_eq!(list[1], 100);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 1);
+  assert_eq!(list[0], 100);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 0);
+}
+
+#[test]
+fn remove_all_from_end() {
+  let mut list = List::<usize>::new();
+
+  list.push(25);
+  list.push(50);
+  list.push(75);
+  list.push(100);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+  assert_eq!(list[3], 100);
+
+  list.remove(3);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+
+  list.remove(2);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 1);
+  assert_eq!(list[0], 25);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 0);
+}
+
+#[test]
+fn remove_all_middle_till_end() {
+  let mut list = List::<usize>::new();
+
+  list.push(0);
+  list.push(25);
+  list.push(50);
+  list.push(75);
+  list.push(100);
+
+  assert_eq!(list.len(), 5);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 75);
+  assert_eq!(list[4], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+  assert_eq!(list[3], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 75);
+  assert_eq!(list[2], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 1);
+  assert_eq!(list[0], 0);
+}
+
+#[test]
+fn remove_all_middle_till_start() {
+  let mut list = List::<usize>::new();
+
+  list.push(0);
+  list.push(25);
+  list.push(50);
+  list.push(75);
+  list.push(100);
+
+  assert_eq!(list.len(), 5);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 75);
+  assert_eq!(list[4], 100);
+
+  list.remove(3);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 100);
+
+  list.remove(2);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 100);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 1);
+  assert_eq!(list[0], 100);
+}
+
+#[test]
+fn push_after_remove() {
+  let mut list = List::<usize>::new();
+
+  list.push(25);
+  list.push(50);
+  list.push(75);
+
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 75);
+
+  list.push(50);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 75);
+  assert_eq!(list[2], 50);
+
+  list.push(75);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 75);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 75);
+
+  list.remove(0);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 75);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+}
+
+#[test]
+fn insert_after_remove() {
+  let mut list = List::<usize>::new();
+
+  list.push(25);
+  list.push(50);
+  list.push(75);
+
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 75);
+
+  list.insert(1, 50);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 25);
+  assert_eq!(list[1], 50);
+  assert_eq!(list[2], 75);
+}
+
+#[test]
+fn insert_after_remove_more() {
+  let mut list = List::<isize>::new();
+
+  list.push(0);
+  list.push(25);
+  list.push(50);
+  list.push(75);
+  list.push(100);
+
+  assert_eq!(list.len(), 5);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 75);
+  assert_eq!(list[4], 100);
+
+  // Let's delete the middle 3
+
+  list.remove(3);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 100);
+
+  list.remove(2);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 25);
+  assert_eq!(list[2], 100);
+
+  list.remove(1);
+
+  assert_eq!(list.len(), 2);
+  assert_eq!(list[0], 0);
+  assert_eq!(list[1], 100);
+
+  // Onto inserting
+
+  list.insert(0, -20);
+
+  assert_eq!(list.len(), 3);
+  assert_eq!(list[0], -20);
+  assert_eq!(list[1], 0);
+  assert_eq!(list[2], 100);
+
+  list.insert(3, 120);
+
+  assert_eq!(list.len(), 4);
+  assert_eq!(list[0], -20);
+  assert_eq!(list[1], 0);
+  assert_eq!(list[2], 100);
+  assert_eq!(list[3], 120);
+
+  list.insert(2, 50);
+
+  assert_eq!(list.len(), 5);
+  assert_eq!(list[0], -20);
+  assert_eq!(list[1], 0);
+  assert_eq!(list[2], 50);
+  assert_eq!(list[3], 100);
+  assert_eq!(list[4], 120);
+
+  list.insert(2, 25);
+
+  assert_eq!(list.len(), 6);
+  assert_eq!(list[0], -20);
+  assert_eq!(list[1], 0);
+  assert_eq!(list[2], 25);
+  assert_eq!(list[3], 50);
+  assert_eq!(list[4], 100);
+  assert_eq!(list[5], 120);
+}
