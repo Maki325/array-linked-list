@@ -82,7 +82,7 @@ impl<T> List<T> {
     }
 
     // You can CERTANLY not call the function, and calculate it on the spot, but OK lol
-    if index != self.nodes.len() {
+    if index != self.nodes.len() - 1 {
       self.fix_position_offsets();
     }
 
